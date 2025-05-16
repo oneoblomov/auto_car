@@ -1,6 +1,6 @@
-## ROS2 Temel Kurulum Adımları
+# ROS2 Temel Kurulum Adımları
 
-### 1. Workspace ve Paket Oluşturma
+## 1. Workspace ve Paket Oluşturma
 
 ```bash
 # Workspace oluştur
@@ -15,7 +15,7 @@ ros2 pkg create --build-type ament_python get_lidar
 # Diğer node'lar için de aynı şekilde paket oluşturun
 ```
 
-### 2. Custom Mesaj/Servis/Action Tanımları
+## 2. Custom Mesaj/Servis/Action Tanımları
 
 ```bash
 # Mesaj paketi oluştur
@@ -27,7 +27,7 @@ ros2 pkg create --build-type ament_cmake custom_actions
 # Örnek: custom_msgs/msg/SignArray.msg
 ```
 
-### 3. Node Kodlarını Yazma
+## 3. Node Kodlarını Yazma
 
 Her paketin içinde, örneğin `get_lidar/get_lidar_node.py` gibi dosyalar oluşturun ve ROS2 node kodunuzu yazın.
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
 ```
 
-### 4. Launch Dosyası ile Başlatma
+## 4. Launch Dosyası ile Başlatma
 
 Tüm node'ları başlatmak için bir launch dosyası yazın.
 
@@ -89,7 +89,7 @@ def generate_launch_description():
     ])
 ```
 
-### 5. Derleme ve Çalıştırma
+## 5. Derleme ve Çalıştırma
 
 ```bash
 cd ~/ros2_ws
@@ -98,7 +98,3 @@ source install/setup.bash
 ros2 launch <paket_adı> <launch_dosyası>
 # Örnek: ros2 launch get_lidar all_nodes.launch.py
 ```
-
----
-
-Bu adımlar, yukarıda tanımladığınız mimarinin temelini ROS2 üzerinde kurmak için yeterlidir. Her node, mesaj, servis ve action için örnek kodları ROS2 belgelerinden veya örneklerinden faydalanarak detaylandırabilirsiniz.
