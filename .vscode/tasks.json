@@ -1,0 +1,159 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+        "label": "Start ROS Nodes Split",
+        "dependsOn": [
+            "Run Get Lidar Node",
+            "Run Get IMU Node",
+            "Run Get RGBD Node"
+        ],
+        "dependsOrder": "parallel",
+        "type": "shell",
+        "command": "echo 'Starting ROS2 nodes...'",
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Get Lidar Node",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run get_lidar get_lidar_node",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-nodes",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Get IMU Node",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run get_imu get_imu_node",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-nodes",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Get RGBD Node",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run get_rgbd get_rgbd_node",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-nodes",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Start Static Transforms Split",
+        "dependsOn": [
+            "Run Static Transform Publisher",
+            "Run Static Transform Publisher (map->imu_link)",
+            "Run Static Transform Publisher (map->lidar_link)"
+        ],
+        "dependsOrder": "parallel",
+        "type": "shell",
+        "command": "echo 'Starting static transform publishers...'",
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Static Transform Publisher",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map camera_link",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-static",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Static Transform Publisher (map->imu_link)",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map imu_link",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-static",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run Static Transform Publisher (map->lidar_link)",
+        "type": "shell",
+        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 map lidar_link",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-static",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Run RViz2",
+        "type": "shell",
+        "command": "source install/setup.bash && /opt/ros/jazzy/bin/rviz2",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-rviz",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/..",
+            "env": {
+                "LD_LIBRARY_PATH": "",
+                "PATH": "/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "HOME": "${env:HOME}",
+                "USER": "${env:USER}",
+                "SNAP": "",
+                "SNAP_LIBRARY_PATH": ""
+            }
+        }
+    },
+    {
+        "label": "Start All ROS Tasks",
+        "dependsOn": [
+            "Start ROS Nodes Split",
+            "Start Static Transforms Split"
+        ],
+        "dependsOrder": "parallel",
+        "type": "shell",
+        "command": "echo 'Starting all ROS tasks...'",
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        }
+    },
+    {
+        "label": "Build Workspace",
+        "type": "shell",
+        "command": "colcon build",
+        "presentation": {
+            "panel": "new",
+            "group": "ros2-build",
+            "showReuseMessage": false
+        },
+        "options": {
+            "cwd": "${workspaceFolder}/.."
+        },
+        "problemMatcher": []
+    }
+]
+}
