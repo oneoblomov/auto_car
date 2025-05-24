@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, PointCloud2, PointField
+from sensor_msgs.msg import CameraInfo  # <-- Add this import
 from std_msgs.msg import Header
 import socket
 import threading
@@ -9,6 +10,8 @@ import struct
 import numpy as np
 import time
 
+HOST = '127.0.0.1'
+PORT = 5005
 class RGBDNode(Node):
     def __init__(self):
         super().__init__('get_rgbd')
@@ -20,6 +23,9 @@ class RGBDNode(Node):
             Image, '/get_rgbd/rgb', 10)
         self.depth_image_publisher = self.create_publisher(
             Image, '/get_rgbd/depth', 10)
+        # CameraInfo publisher
+        self.camera_info_publisher = self.create_publisher(
+            CameraInfo, '/get_rgbd/camera_info', 10)
         
         # RGB-D verileri için değişkenler
         self.points = []  # Nokta bulutu verileri (x, y, z, r, g, b)
@@ -47,8 +53,6 @@ class RGBDNode(Node):
         self.get_logger().info("RGB-D node başlatıldı, bağlantı için hazır.")
 
     def tcp_server(self):
-        HOST = '127.0.0.1'
-        PORT = 5020
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
@@ -63,28 +67,38 @@ class RGBDNode(Node):
                 try:
                     # Uzunluk değerini al
                     length_bytes = conn.recv(4)
-                    if not length_bytes:
-                        self.get_logger().warning("Uzunluk verisi alınamadı")
+                    if not length_bytes or len(length_bytes) < 4:
+                        self.get_logger().warning(f"Eksik uzunluk verisi: {len(length_bytes) if length_bytes else 0} bytes alındı")
                         conn.close()
                         continue
                     
                     message_length = struct.unpack("i", length_bytes)[0]
                     
+                    if message_length <= 0 or message_length > 10000000:  # Makul bir üst sınır (10MB)
+                        self.get_logger().warning(f"Geçersiz mesaj uzunluğu: {message_length}")
+                        conn.close()
+                        continue
+                        
+                    self.get_logger().info(f"Beklenen veri uzunluğu: {message_length} bytes")
+                    
                     # Veriyi al
                     data = b''
-                    while len(data) < message_length:
-                        chunk = conn.recv(min(4096, message_length - len(data)))
+                    bytes_received = 0
+                    
+                    while bytes_received < message_length:
+                        chunk = conn.recv(min(4096, message_length - bytes_received))
                         if not chunk:
                             break
                         data += chunk
-                    
-                    if len(data) == message_length:
+                        bytes_received += len(chunk)
+                        
+                    if bytes_received == message_length:
                         data_str = data.decode('utf-8')
                         self.parse_rgbd_data(data_str)
                         self.connection_count += 1
-                        self.get_logger().info(f"RGB-D data received (#{self.connection_count})")
+                        self.get_logger().info(f"RGB-D data received (#{self.connection_count}): {bytes_received} bytes")
                     else:
-                        self.get_logger().warning(f"Eksik veri: {len(data)}/{message_length} bytes alındı")
+                        self.get_logger().warning(f"Eksik veri: {bytes_received}/{message_length} bytes alındı")
                         
                 except Exception as e:
                     self.get_logger().error(f"RGB-D TCP error: {e}")
@@ -95,7 +109,7 @@ class RGBDNode(Node):
             time.sleep(5)
 
     def parse_rgbd_data(self, data_str):
-        lines = data_str.strip().split('\\n')
+        lines = data_str.strip().split('\n')  # Changed from '\\n' to '\n'
         
         try:
             line_idx = 0
@@ -140,10 +154,13 @@ class RGBDNode(Node):
                         r = float(point_data[3])
                         g = float(point_data[4])
                         b = float(point_data[5])
-                        # Unity -> ROS dönüşümü
-                        ros_x = unity_z
-                        ros_y = -unity_x
-                        ros_z = unity_y
+                        
+                        # Corrected Unity -> ROS dönüşümü
+                        # Unity (right-handed, Y-up) to ROS (right-handed, Z-up)
+                        ros_x = unity_z  # Unity forward → ROS forward
+                        ros_y = -unity_x  # Unity right → ROS left
+                        ros_z = unity_y  # Unity up → ROS up
+                        
                         points.append((ros_x, ros_y, ros_z, r, g, b))
             
             with self.lock:
@@ -151,23 +168,27 @@ class RGBDNode(Node):
             
         except Exception as e:
             self.get_logger().error(f"RGB-D veri işleme hatası: {e}")
-    
+            self.get_logger().error(f"İlk birkaç satır: {lines[:10] if len(lines) >= 10 else lines}")
+
     def timer_callback(self):
         with self.lock:
             if not self.points:
                 return
-            
+
             # Header
             header = Header()
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = self.frame_id
-            
+
             # PointCloud2 mesajı için nokta bulutu verileri hazırla
             self.publish_point_cloud(header)
-            
+
             # RGB ve Derinlik görüntüleri oluştur ve yayınla
             self.publish_rgb_depth_images(header)
-    
+
+            # CameraInfo mesajı oluştur ve yayınla
+            self.publish_camera_info(header)
+
     def publish_point_cloud(self, header):
         if not self.points:
             return
@@ -225,36 +246,49 @@ class RGBDNode(Node):
         # RGB ve derinlik görüntüleri için np dizileri
         rgb_data = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         depth_data = np.zeros((self.height, self.width), dtype=np.float32)
+        depth_mask = np.zeros((self.height, self.width), dtype=bool)
         
-        # Nokta indeksi
-        point_idx = 0
+        # Noktaları bir 2D ızgara gibi organize et
+        h_angle_range = self.horizontal_fov
+        v_angle_range = self.vertical_fov
         
-        # Noktaları görüntülere dönüştür
-        for v in range(self.height):
-            for h in range(self.width):
-                if point_idx < len(self.points):
-                    x, y, z, r, g, b = self.points[point_idx]
-                    
-                    # RGB değerlerini görüntüye yerleştir
-                    rgb_data[v, h, 0] = int(r * 255)
-                    rgb_data[v, h, 1] = int(g * 255)
-                    rgb_data[v, h, 2] = int(b * 255)
-                    
-                    # Derinlik değerini görüntüye yerleştir (z eksenindeki uzaklık)
-                    depth_data[v, h] = z
-                    
-                    point_idx += 1
-        
-        # Görüntüleri dikey olarak çevir (flipud)
-        rgb_data = np.flipud(rgb_data)
-        depth_data = np.flipud(depth_data)
+        for point in self.points:
+            x, y, z, r, g, b = point
+            
+            # Açıları hesapla (halen ROS koordinat sisteminde)
+            # x ekseni ileriyi, y ekseni solu, z ekseni yukarıyı gösterir
+            distance = np.sqrt(x*x + y*y + z*z)
+            if distance < 0.01:  # Çok yakın noktaları atla
+                continue
+                
+            # Yatay açı (yaw) - y eksenindeki sapma
+            h_angle = np.arctan2(y, x)
+            # Dikey açı (pitch) - z eksenindeki yükselme
+            v_angle = np.arcsin(z / distance)
+            
+            # Açıları görüntü koordinatlarına dönüştür - yatay açı sağdan sola
+            h_idx = int((h_angle / np.radians(h_angle_range) + 0.5) * self.width)
+            
+            # Dikey açı - ÖNEMLİ DEĞİŞİKLİK: Dikey yansımayı düzeltmek için
+            # Dikey açı dönüşümünü tersine çevir: Artı açılar (yukarı) görüntünün üstüne gitsin
+            v_idx = int((-v_angle / np.radians(v_angle_range) + 0.5) * self.height)
+            
+            # Görüntü sınırlarını kontrol et
+            if 0 <= h_idx < self.width and 0 <= v_idx < self.height:
+                if not depth_mask[v_idx, h_idx] or depth_data[v_idx, h_idx] > distance:
+                    # BGR sıralaması ile doldur
+                    rgb_data[v_idx, h_idx, 0] = int(b * 255)  # B
+                    rgb_data[v_idx, h_idx, 1] = int(g * 255)  # G
+                    rgb_data[v_idx, h_idx, 2] = int(r * 255)  # R
+                    depth_data[v_idx, h_idx] = distance
+                    depth_mask[v_idx, h_idx] = True
         
         # RGB görüntü mesajı
         rgb_msg = Image()
         rgb_msg.header = header
         rgb_msg.height = self.height
         rgb_msg.width = self.width
-        rgb_msg.encoding = 'rgb8'
+        rgb_msg.encoding = 'bgr8'  # <-- Burayı değiştirin!
         rgb_msg.is_bigendian = 0
         rgb_msg.step = self.width * 3
         rgb_msg.data = rgb_data.tobytes()
@@ -272,7 +306,37 @@ class RGBDNode(Node):
         # Yayınla
         self.rgb_image_publisher.publish(rgb_msg)
         self.depth_image_publisher.publish(depth_msg)
-        self.get_logger().debug(f"RGB ve Depth görüntüleri yayınlandı: {self.width}x{self.height}")
+        self.get_logger().debug(f"RGB ve Depth görüntüleri yayınlandı: {self.width}x{self.height}, noktalar: {len(self.points)}")
+    
+    def publish_camera_info(self, header):
+        # Only publish if width/height are valid
+        if self.width <= 0 or self.height <= 0:
+            return
+
+        cam_info = CameraInfo()
+        cam_info.header = header
+        cam_info.width = self.width
+        cam_info.height = self.height
+        cam_info.distortion_model = 'plumb_bob'
+        cam_info.d = [0.0, 0.0, 0.0, 0.0, 0.0]  # No distortion
+
+        # Focal length and principal point estimation
+        # If you have real intrinsics, use them here!
+        fx = fy = 0.5 * self.width / np.tan(np.radians(self.horizontal_fov) / 2) if self.horizontal_fov > 0 else 525.0
+        cx = self.width / 2.0
+        cy = self.height / 2.0
+
+        cam_info.k = [fx, 0, cx,
+                      0, fy, cy,
+                      0, 0, 1]
+        cam_info.r = [1, 0, 0,
+                      0, 1, 0,
+                      0, 0, 1]
+        cam_info.p = [fx, 0, cx, 0,
+                      0, fy, cy, 0,
+                      0, 0, 1, 0]
+
+        self.camera_info_publisher.publish(cam_info)
 
 def main(args=None):
     rclpy.init(args=args)

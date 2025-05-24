@@ -8,6 +8,8 @@ import struct
 import time
 import subprocess
 
+HOST = '127.0.0.1' 
+PORT = 12345
 class LidarNode(Node):
     def __init__(self):
         super().__init__('get_lidar')
@@ -29,57 +31,45 @@ class LidarNode(Node):
         self.get_logger().info("LiDAR node başlatıldı, bağlantı için hazır.")
 
     def tcp_server(self):
-        # IMU node'una benzer şekilde basitleştirilmiş sunucu kodu
-        HOST = '127.0.0.1'  # IMU ile aynı yaklaşım - local host
-        PORT = 5010
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
         try:
             server.bind((HOST, PORT))
-            server.listen(1)  # IMU gibi basit dinleme
+            server.listen(1)
             self.get_logger().info(f"LiDAR TCP server listening on {HOST}:{PORT}")
             
             while rclpy.ok():
-                conn, addr = server.accept()
-                self.get_logger().info(f"LiDAR TCP connection from {addr}")
+                conn = None
                 try:
-                    # Uzunluk değerini al
-                    length_bytes = conn.recv(4)
-                    if not length_bytes:
-                        self.get_logger().warning("Uzunluk verisi alınamadı")
-                        conn.close()
-                        continue
+                    conn, addr = server.accept()
+                    self.get_logger().info(f"LiDAR TCP connection from {addr}")
                     
-                    message_length = struct.unpack("i", length_bytes)[0]
+                    # IMU gibi basit veri okuma - tüm veriyi bir kerede al
+                    data = conn.recv(65536).decode('utf-8')  # Büyük buffer
                     
-                    # Veriyi al
-                    data = b''
-                    while len(data) < message_length:
-                        chunk = conn.recv(min(1024, message_length - len(data)))
-                        if not chunk:
-                            break
-                        data += chunk
-                    
-                    if len(data) == message_length:
-                        data_str = data.decode('utf-8')
-                        ranges = self.parse_unity_lidar_data(data_str)
+                    if data:
+                        ranges = self.parse_unity_lidar_data(data)
                         if ranges:
                             with self.lock:
                                 self.latest_ranges = ranges
                                 self.get_logger().info(f"LiDAR veri alındı: {len(ranges)} nokta")
+                        else:
+                            self.get_logger().warning("LiDAR verisi parse edilemedi")
                     else:
-                        self.get_logger().warning(f"Eksik veri: {len(data)}/{message_length} bytes alındı")
+                        self.get_logger().warning("Boş veri alındı")
                         
                 except Exception as e:
                     self.get_logger().error(f"LiDAR TCP error: {e}")
                 finally:
-                    conn.close()
+                    try:
+                        if conn is not None:
+                            conn.close()
+                    except:
+                        pass
         except Exception as e:
             self.get_logger().error(f"LiDAR TCP server başlatılamadı: {e}")
             time.sleep(5)
-
-# recvall metodu kaldırıldı çünkü artık kullanılmıyor
 
     def parse_unity_lidar_data(self, data_str):
         lines = data_str.strip().split('\n')
@@ -95,10 +85,14 @@ class LidarNode(Node):
             timestamp = float(lines[line_index])  # Unity timestamp
             line_index += 1
             
-            self.latest_angle_min = float(lines[line_index])
+            # CORRECTION: Swap angle_min and angle_max to fix direction
+            angle_max = float(lines[line_index])
             line_index += 1
-            self.latest_angle_max = float(lines[line_index])
+            angle_min = float(lines[line_index])
             line_index += 1
+            
+            self.latest_angle_min = -angle_max  # Negate to flip the direction
+            self.latest_angle_max = -angle_min  # Negate to flip the direction
             self.latest_angle_increment = float(lines[line_index])
             line_index += 1
             
@@ -126,6 +120,9 @@ class LidarNode(Node):
                         ranges.append(range_val)
                     except ValueError as e:
                         self.get_logger().error(f"Range değeri dönüştürülemedi: {lines[i]}, hata: {e}")
+            
+            # CORRECTION: Reverse the ranges array to fix the direction
+            ranges.reverse()
             
             # Topic ismini kontrol et (eğer varsa)
             if line_index + num_ranges < len(lines):

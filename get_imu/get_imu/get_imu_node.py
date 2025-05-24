@@ -1,71 +1,73 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
+from geometry_msgs.msg import Vector3
 import socket
 import threading
 
-class ImuNode(Node):
+HOST = '127.0.0.1'
+PORT = 6006
+
+class IMUNode(Node):
     def __init__(self):
         super().__init__('get_imu')
         self.publisher_ = self.create_publisher(Imu, '/get_imu/data', 10)
-        self.imu_data = [0.0] * 6  # ax, ay, az, gx, gy, gz
+        self.latest_accel = Vector3()
+        self.latest_gyro = Vector3()
         self.lock = threading.Lock()
+        
         self.tcp_thread = threading.Thread(target=self.tcp_server, daemon=True)
         self.tcp_thread.start()
-        self.timer = self.create_timer(0.05, self.timer_callback)  # 20 Hz
+        self.timer = self.create_timer(0.1, self.timer_callback)
+        
+        self.get_logger().info("IMU node başlatıldı")
 
     def tcp_server(self):
-        HOST = '127.0.0.1'
-        PORT = 6006
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((HOST, PORT))
-        server.listen(1)
-        self.get_logger().info(f"IMU TCP server listening on {HOST}:{PORT}")
-        while rclpy.ok():
-            conn, addr = server.accept()
-            try:
-                buffer = b''
-                while rclpy.ok():
-                    chunk = conn.recv(1024)
-                    if not chunk:
-                        break
-                    buffer += chunk
-                    while b'\n' in buffer:
-                        line, buffer = buffer.split(b'\n', 1)
-                        data_str = line.decode('utf-8').strip()
-                        if data_str:
-                            parts = data_str.split(',')
-                            if len(parts) >= 6:
-                                with self.lock:
-                                    self.imu_data = [float(x) for x in parts[:6]]
-            except Exception as e:
-                self.get_logger().error(f"IMU TCP error: {e}")
-            finally:
-                conn.close()
-                
+        
+        try:
+            server.bind((HOST, PORT))
+            server.listen(1)
+            self.get_logger().info(f"IMU TCP server listening on {HOST}:{PORT}")
+            
+            while rclpy.ok():
+                try:
+                    conn, addr = server.accept()
+                    data = conn.recv(1024).decode('utf-8').strip()
+                    conn.close()
+                    
+                    if data:
+                        parts = data.split(',')
+                        if len(parts) >= 6:
+                            with self.lock:
+                                self.latest_accel.x = float(parts[0])
+                                self.latest_accel.y = float(parts[1])
+                                self.latest_accel.z = float(parts[2])
+                                self.latest_gyro.x = float(parts[3])
+                                self.latest_gyro.y = float(parts[4])
+                                self.latest_gyro.z = float(parts[5])
+                                
+                except Exception as e:
+                    self.get_logger().error(f"IMU TCP error: {e}")
+                    
+        except Exception as e:
+            self.get_logger().error(f"IMU TCP server error: {e}")
+
     def timer_callback(self):
         msg = Imu()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'imu_link'
+        
         with self.lock:
-            ax, ay, az, gx, gy, gz = self.imu_data
-        msg.linear_acceleration.x = ax
-        msg.linear_acceleration.y = ay
-        msg.linear_acceleration.z = az
-        msg.angular_velocity.x = gx
-        msg.angular_velocity.y = gy
-        msg.angular_velocity.z = gz
-        # Orientation bilinmiyor, sıfır bırakılıyor
-        msg.orientation.w = 1.0
-        msg.orientation.x = 0.0
-        msg.orientation.y = 0.0
-        msg.orientation.z = 0.0
+            msg.linear_acceleration = self.latest_accel
+            msg.angular_velocity = self.latest_gyro
+            
         self.publisher_.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ImuNode()
+    node = IMUNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
