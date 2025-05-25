@@ -1,159 +1,432 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-        "label": "Start ROS Nodes Split",
-        "dependsOn": [
-            "Run Get Lidar Node",
-            "Run Get IMU Node",
-            "Run Get RGBD Node"
-        ],
-        "dependsOrder": "parallel",
-        "type": "shell",
-        "command": "echo 'Starting ROS2 nodes...'",
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Get Lidar Node",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run get_lidar get_lidar_node",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-nodes",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Get IMU Node",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run get_imu get_imu_node",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-nodes",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Get RGBD Node",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run get_rgbd get_rgbd_node",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-nodes",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Start Static Transforms Split",
-        "dependsOn": [
-            "Run Static Transform Publisher",
-            "Run Static Transform Publisher (map->imu_link)",
-            "Run Static Transform Publisher (map->lidar_link)"
-        ],
-        "dependsOrder": "parallel",
-        "type": "shell",
-        "command": "echo 'Starting static transform publishers...'",
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Static Transform Publisher",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map camera_link",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-static",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Static Transform Publisher (map->imu_link)",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map imu_link",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-static",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run Static Transform Publisher (map->lidar_link)",
-        "type": "shell",
-        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 map lidar_link",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-static",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Run RViz2",
-        "type": "shell",
-        "command": "source install/setup.bash && /opt/ros/jazzy/bin/rviz2",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-rviz",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/..",
-            "env": {
-                "LD_LIBRARY_PATH": "",
-                "PATH": "/opt/ros/jazzy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                "HOME": "${env:HOME}",
-                "USER": "${env:USER}",
-                "SNAP": "",
-                "SNAP_LIBRARY_PATH": ""
-            }
-        }
-    },
-    {
-        "label": "Start All ROS Tasks",
-        "dependsOn": [
-            "Start ROS Nodes Split",
-            "Start Static Transforms Split"
-        ],
-        "dependsOrder": "parallel",
-        "type": "shell",
-        "command": "echo 'Starting all ROS tasks...'",
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        }
-    },
-    {
-        "label": "Build Workspace",
-        "type": "shell",
-        "command": "colcon build",
-        "presentation": {
-            "panel": "new",
-            "group": "ros2-build",
-            "showReuseMessage": false
-        },
-        "options": {
-            "cwd": "${workspaceFolder}/.."
-        },
-        "problemMatcher": []
-    }
-]
+        "version": "2.0.0",
+        "tasks": [
+                // ==================== AUTONOMOUS DRIVING SYSTEM ====================
+                {
+                        "label": "🚗 Start Autonomous Driving System",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 launch detect autonomous_driving.launch.py",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false,
+                                "focus": true
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                },
+                {
+                        "label": "🤖 Start Motor Control Only",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run control motor_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "👁️ Start Obstacle Detection",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run detect obstacle_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🗺️ Start Path Planner",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run detect path_planner",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🧠 Start Behavior Manager",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run detect behavior_manager",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎮 Start Control Interface",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run detect control_interface",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                // ==================== SENSOR NODES ====================
+                {
+                        "label": "Start ROS Nodes Split",
+                        "dependsOn": [
+                                "Run Get Lidar Node",
+                                "Run Get IMU Node",
+                                "Run Get RGBD Node",
+                                "Run Get Encoder Node",
+                                "Run Get Targeting Camera Node"
+                        ],
+                        "dependsOrder": "parallel",
+                        "type": "shell",
+                        "command": "echo 'Starting ROS2 sensor nodes...'",
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Get Lidar Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get lidar_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Get IMU Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get imu_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Get RGBD Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get rgbd_camera_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Get Encoder Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get encoder_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Get Targeting Camera Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get targeting_camera_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                // Rest of the file remains the same
+                {
+                        "label": "Start Static Transforms Split",
+                        "dependsOn": [
+                                "Run Static Transform Publisher",
+                                "Run Static Transform Publisher (map->imu_link)",
+                                "Run Static Transform Publisher (map->lidar_link)",
+                                "Run Static Transform Publisher (map->odom)",
+                                "Run Static Transform Publisher (map->camera_link)"
+                        ],
+                        "dependsOrder": "parallel",
+                        "type": "shell",
+                        "command": "echo 'Starting static transform publishers...'",
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Static Transform Publisher",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map camera_link",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Static Transform Publisher (map->imu_link)",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map imu_link",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Static Transform Publisher (map->lidar_link)",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map lidar_link",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Static Transform Publisher (map->odom)",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map odom",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Static Transform Publisher (map->camera_link)",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map camera_link",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                // ==================== COMPLETE SYSTEM STARTUP ====================
+                {
+                        "label": "🚀 Start Complete System (Sensors + Autonomous)",
+                        "dependsOn": [
+                                "Start ROS Nodes Split",
+                                "Start Static Transforms Split"
+                        ],
+                        "dependsOrder": "sequence",
+                        "type": "shell",
+                        "command": "sleep 3 && source install/setup.bash && ros2 launch detect autonomous_driving.launch.py",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "complete-system",
+                                "showReuseMessage": false,
+                                "focus": true
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                },
+                {
+                        "label": "Start All ROS Tasks",
+                        "dependsOn": [
+                                "Start ROS Nodes Split",
+                                "Start Static Transforms Split"
+                        ],
+                        "dependsOrder": "parallel",
+                        "type": "shell",
+                        "command": "echo 'Starting all sensor ROS tasks...'",
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                // ==================== BUILD AND MONITORING ====================
+                {
+                        "label": "🔨 Build All Packages",
+                        "type": "shell",
+                        "command": "colcon build",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "build-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                },
+                {
+                        "label": "🔨 Build Detect Package Only",
+                        "type": "shell",
+                        "command": "colcon build --packages-select detect",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "build-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                },
+                {
+                        "label": "🔨 Build Control Package Only",
+                        "type": "shell",
+                        "command": "colcon build --packages-select control",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "build-system",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                },
+                {
+                        "label": "📊 Monitor System Topics",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic list && echo '\\n=== Topic Frequencies ===' && ros2 topic hz /cmd_vel & ros2 topic hz /get_lidar/scan & ros2 topic hz /autonomous_status & wait",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "monitoring",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎯 Test Manual Control",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo 'Testing manual control...' && ros2 topic pub --once /manual_cmd_vel geometry_msgs/Twist '{linear: {x: 1.0}, angular: {z: 0.0}}'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎯 Set Autonomous Mode",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic pub --once /driving_mode std_msgs/String 'data: \"autonomous\"'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎯 Set Manual Mode",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic pub --once /driving_mode std_msgs/String 'data: \"manual\"'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎯 Send Goal Position",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped '{header: {frame_id: \"map\"}, pose: {position: {x: 5.0, y: 3.0, z: 0.0}, orientation: {w: 1.0}}}'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🚨 Emergency Stop",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic pub --once /emergency_stop std_msgs/Bool 'data: true'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "✅ Clear Emergency Stop",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 topic pub --once /emergency_stop std_msgs/Bool 'data: false'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "testing",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Build Workspace",
+                        "type": "shell",
+                        "command": "colcon build",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-build",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        },
+                        "problemMatcher": []
+                }
+        ]
 }

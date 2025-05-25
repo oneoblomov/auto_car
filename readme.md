@@ -6,11 +6,11 @@ Her ana işlev için bir ROS 2 node'u vardır:
 
 - **Sensör Düğümleri**
 
-  - `get_lidar`: 2D Lidar verisi yayınlar.
-  - `get_imu`: IMU verisi yayınlar.
-  - `get_encoder`: Odometri verisi yayınlar.
-  - `get_rgbd`: RGB-D kamera renk ve derinlik görüntülerini yayınlar.
-  - `get_targeting_camera`: Nişangah kamerası görüntüsü yayınlar.
+  - `get/lidar`: 2D Lidar verisi yayınlar.
+  - `get/imu`: IMU verisi yayınlar.
+  - `get/encoder`: Odometri verisi yayınlar.
+  - `get/rgbd`: RGB-D kamera renk ve derinlik görüntülerini yayınlar.
+  - `get/targeting_camera`: Nişangah kamerası görüntüsü yayınlar.
 
 - **Perception (Algılama) Düğümleri**
 
@@ -27,10 +27,10 @@ Her ana işlev için bir ROS 2 node'u vardır:
 
 - **Control (Kontrol) Düğümleri**
 
-  - `control_motor`: Motorlara hız komutu gönderir.
-  - `control_servo`: Servo/lazer işaretleyici kontrolü.
-  - `control_laser`: Lazer işaretleyici servo komutu.
-  - `control_shooting`: Hedef tespiti ve atış kontrolü.
+  - `control/motor`: Motorlara hız komutu gönderir.
+  - `control/servo`: Servo/lazer işaretleyici kontrolü.
+  - `control/laser`: Lazer işaretleyici servo komutu.
+  - `control/shooting`: Hedef tespiti ve atış kontrolü.
 
 - **UI (Kullanıcı Arayüzü) Düğümleri**
   - `ui_web_dashboard`: Web tabanlı gösterge paneli.
@@ -44,11 +44,11 @@ Her ana işlev için bir ROS 2 node'u vardır:
 
 Veri akışı için kullanılan ana ROS 2 topic'leri:
 
-| Topic Adı                         | Mesaj Tipi                   | Açıklama                                 | Yayıncı Node                                        | Abone Node(lar)                                  |
-| --------------------------------- | ---------------------------- | ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `/get_lidar/scan`                 | `sensor_msgs/LaserScan`      | Lidar verisi                             | get_lidar                                           | detect_obstacle, plan_local_path                 |
-| `/get_imu/data`                   | `sensor_msgs/Imu`            | IMU verisi                               | get_imu                                             | plan_local_path, manage_behavior                 |
-| `/get_encoder/odom`               | `nav_msgs/Odometry`          | Encoder odometrisi                       | get_encoder                                         | plan_local_path, manage_behavior                 |
+| Topic Adı | Mesaj Tipi | Açıklama | Yayıncı Node | Abone Node(lar) |
+| --------- | ---------- | -------- | ------------ | --------------- |
+| `/get_lidar/scan` | `sensor_msgs/LaserScan` | Lidar verisi | get_lidar | detect_obstacle, plan_local_path |
+| `/get_imu/data` | `sensor_msgs/Imu` | IMU verisi | get_imu | plan_local_path, manage_behavior |
+| `/get_encoder/odom` | `nav_msgs/Odometry` | Encoder odometrisi | get_encoder | plan_local_path, manage_behavior                 |
 | `/get_rgbd_camera/color_image`    | `sensor_msgs/Image`          | RGB-D kamera renk görüntüsü              | get_rgbd_camera                                     | detect_sign, detect_object, segment_color        |
 | `/get_rgbd_camera/depth_image`    | `sensor_msgs/Image`          | RGB-D kamera derinlik görüntüsü          | get_rgbd_camera                                     | detect_obstacle, control_shooting                |
 | `/get_targeting_camera/image`     | `sensor_msgs/Image`          | Nişangah kamera görüntüsü                | get_targeting_camera                                | detect_object, control_shooting                  |
