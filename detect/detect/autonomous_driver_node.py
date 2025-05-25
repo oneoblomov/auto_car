@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist, PoseStamped, Point
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Odometry
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String, Bool
 import numpy as np
@@ -22,7 +22,16 @@ class DrivingMode(Enum):
 class AutonomousDriverNode(Node):
     def __init__(self):
         super().__init__('autonomous_driver')
+        self.goal_sub = self.create_subscription(
+            PoseStamped,
+            '/goal_pose',
+            self.goal_callback,
+            10
+        )
         
+        # Goal değişkenleri
+        self.goal_x = None
+        self.goal_y = None
         # Publishers
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', 10)
@@ -64,6 +73,15 @@ class AutonomousDriverNode(Node):
             10
         )
         
+        # Encoder subscription for position tracking
+        from nav_msgs.msg import Odometry
+        self.odom_sub = self.create_subscription(
+            Odometry,
+            '/get_encoder/odom',
+            self.odom_callback,
+            10
+        )
+        
         # Durum değişkenleri
         self.current_mode = DrivingMode.MANUAL
         self.emergency_stop = False
@@ -94,7 +112,12 @@ class AutonomousDriverNode(Node):
         
         self.get_logger().info("Otonom Sürücü Node başlatıldı")
         self.get_logger().info("Mevcut mod: MANUAL")
-
+    def goal_callback(self, msg):
+        """Hedef pozisyon callback"""
+        self.goal_x = msg.pose.position.x
+        self.goal_y = msg.pose.position.y
+        self.get_logger().info(f"Yeni hedef alındı: ({self.goal_x:.2f}, {self.goal_y:.2f})")
+    
     def mode_callback(self, msg):
         """Sürüş modu değiştirme"""
         try:
@@ -139,6 +162,17 @@ class AutonomousDriverNode(Node):
         """Manuel komut callback"""
         self.manual_cmd = msg
 
+    def odom_callback(self, msg):
+        """Odometry callback - robot pozisyonunu güncelle"""
+        self.robot_x = msg.pose.pose.position.x
+        self.robot_y = msg.pose.pose.position.y
+        
+        # Quaternion'dan yaw açısını hesapla - basit yöntem
+        orientation = msg.pose.pose.orientation
+        siny_cosp = 2 * (orientation.w * orientation.z + orientation.x * orientation.y)
+        cosy_cosp = 1 - 2 * (orientation.y * orientation.y + orientation.z * orientation.z)
+        self.robot_yaw = math.atan2(siny_cosp, cosy_cosp)
+
     def control_loop(self):
         """Ana kontrol döngüsü"""
         if self.emergency_stop:
@@ -163,10 +197,35 @@ class AutonomousDriverNode(Node):
 
     def handle_autonomous_mode(self):
         """Otonom mod kontrolü"""
-        # Path planner'dan gelen komutları kullan
-        # Bu mod path_planner_node ile koordine çalışır
-        pass
-
+        # Hedefe ulaştık mı kontrol et
+        if self.goal_x is not None and self.goal_y is not None:
+            distance_to_goal = math.sqrt((self.goal_x - self.robot_x)**2 + (self.goal_y - self.robot_y)**2)
+            if distance_to_goal < 0.5:  # Hedefe vardık
+                self.stop_robot()
+                self.get_logger().info("Hedefe ulaşıldı!")
+                return
+        
+        # Yol açık mı kontrol et
+        if not self.is_path_clear():
+            # Basit engel kaçınma
+            cmd_vel = Twist()
+            cmd_vel.linear.x = 0.2
+            cmd_vel.angular.z = 0.5  # Sola dön
+            self.cmd_vel_pub.publish(cmd_vel)
+        else:
+            # Hedefe doğru git
+            if self.goal_x is not None and self.goal_y is not None:
+                # Hedefe yönelim hesapla
+                target_angle = math.atan2(self.goal_y - self.robot_y, self.goal_x - self.robot_x)
+                angle_diff = target_angle - self.robot_yaw
+                
+                cmd_vel = Twist()
+                cmd_vel.linear.x = 0.5
+                cmd_vel.angular.z = angle_diff * 0.5  # Açı düzeltmesi
+                self.cmd_vel_pub.publish(cmd_vel)
+            else:
+                # Hedef yok, dur
+                self.stop_robot()
     def handle_wall_follow_mode(self):
         """Duvar takip modu"""
         if self.latest_lidar is None:

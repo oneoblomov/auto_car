@@ -29,6 +29,9 @@ class MotorControlNode(Node):
         self.unity_socket = None
         self.unity_host = '127.0.0.1'  # localhost
         self.unity_port = 9999
+        self.connection_retry_interval = 5.0  # 5 saniyede bir yeniden dene
+        self.last_connection_attempt = 0.0
+        self.is_connected = False
         self.setup_unity_connection()
         
         # Subscriptions
@@ -49,6 +52,9 @@ class MotorControlNode(Node):
         # Timer for regular motor updates
         self.timer = self.create_timer(0.1, self.update_motors)  # 10 Hz
         
+        # Timer for connection monitoring (sadece bağlantı yoksa çalışır)
+        self.connection_timer = self.create_timer(2.0, self.check_connection)  # 2 saniyede bir
+        
         # Motor hızları
         self.left_speed = 0.0
         self.right_speed = 0.0
@@ -58,12 +64,62 @@ class MotorControlNode(Node):
     def setup_unity_connection(self):
         """Unity ile TCP bağlantısı kur"""
         try:
+            if self.unity_socket:
+                try:
+                    self.unity_socket.close()
+                except:
+                    pass
+            
             self.unity_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.unity_socket.settimeout(5.0)  # 5 saniye timeout
             self.unity_socket.connect((self.unity_host, self.unity_port))
+            self.is_connected = True
             self.get_logger().info(f"Unity bağlantısı kuruldu: {self.unity_host}:{self.unity_port}")
         except Exception as e:
             self.get_logger().warn(f"Unity bağlantısı kurulamadı: {e}")
             self.unity_socket = None
+            self.is_connected = False
+            self.last_connection_attempt = self.get_clock().now().nanoseconds / 1e9
+
+    def check_connection(self):
+        """Bağlantı durumunu kontrol et ve gerekirse yeniden bağlan"""
+        if not self.is_connected or self.unity_socket is None:
+            current_time = self.get_clock().now().nanoseconds / 1e9
+            
+            # Son deneme zamanından belli bir süre geçtiyse tekrar dene
+            if current_time - self.last_connection_attempt > self.connection_retry_interval:
+                self.get_logger().info("Unity bağlantısı yeniden kuruluyor...")
+                self.setup_unity_connection()
+        
+        # Bağlantı testini yap
+        elif self.unity_socket:
+            try:
+                # Basit bir test mesajı gönder
+                test_data = {
+                    "type": "connection_test",
+                    "timestamp": self.get_clock().now().nanoseconds / 1e9
+                }
+                test_command = json.dumps(test_data) + '\n'
+                self.unity_socket.send(test_command.encode())
+            except Exception as e:
+                self.get_logger().warn(f"Bağlantı testi başarısız, yeniden bağlanılıyor: {e}")
+                self.is_connected = False
+                self.unity_socket = None
+
+    def send_to_unity(self, data):
+        """Unity'ye güvenli veri gönderimi"""
+        if not self.is_connected or self.unity_socket is None:
+            return False
+        
+        try:
+            command = json.dumps(data) + '\n'
+            self.unity_socket.send(command.encode())
+            return True
+        except Exception as e:
+            self.get_logger().error(f"Unity gönderim hatası: {e}")
+            self.is_connected = False
+            self.unity_socket = None
+            return False
 
     def cmd_vel_callback(self, msg):
         """Twist mesajından motor hızlarını hesapla"""
@@ -74,11 +130,12 @@ class MotorControlNode(Node):
         left_vel = linear_x - (angular_z * self.wheel_base / 2.0)
         right_vel = linear_x + (angular_z * self.wheel_base / 2.0)
         
-        # Hızları normalize et
+        # Hızları normalize et (-100 ile +100 arası)
         self.left_speed = max(-self.max_speed, min(self.max_speed, left_vel * 100))
         self.right_speed = max(-self.max_speed, min(self.max_speed, right_vel * 100))
         
-        self.get_logger().debug(f"Motor hızları - Sol: {self.left_speed:.2f}, Sağ: {self.right_speed:.2f}")
+        self.get_logger().info(f"Motor hızları - Sol: {self.left_speed:.2f}, Sağ: {self.right_speed:.2f}")
+        self.get_logger().info(f"Gelen komut - Linear: {linear_x:.2f}, Angular: {angular_z:.2f}")
 
     def update_motors(self):
         """Motor hızlarını güncelle ve gönder"""
@@ -88,20 +145,16 @@ class MotorControlNode(Node):
         self.motor_speeds_pub.publish(motor_msg)
         
         # Unity'ye TCP üzerinden gönder
-        if self.unity_socket:
-            try:
-                motor_data = {
-                    "type": "motor_control",
-                    "left_speed": self.left_speed,
-                    "right_speed": self.right_speed
-                }
-                command = json.dumps(motor_data) + '\n'
-                self.unity_socket.send(command.encode())
-            except Exception as e:
-                self.get_logger().error(f"Unity gönderim hatası: {e}")
-                self.unity_socket = None
-                # Yeniden bağlanmaya çalış
-                self.setup_unity_connection()
+        motor_data = {
+            "type": "motor_control",
+            "left_speed": self.left_speed,
+            "right_speed": self.right_speed
+        }
+        
+        success = self.send_to_unity(motor_data)
+        if not success and not self.is_connected:
+            # Bağlantı kopmuşsa logla ama her seferinde spam yapma
+            pass  # check_connection timer'ı zaten yeniden bağlanmaya çalışacak
 
     def manual_control(self, left_power, right_power):
         """Manuel motor kontrolü"""
@@ -116,7 +169,7 @@ class MotorControlNode(Node):
     def destroy_node(self):
         """Node kapatılırken motorları durdur"""
         self.stop_motors()
-        if self.unity_socket:
+        if self.unity_socket and self.is_connected:
             try:
                 # Son durma komutu gönder
                 stop_data = {
@@ -124,7 +177,7 @@ class MotorControlNode(Node):
                     "left_speed": 0.0,
                     "right_speed": 0.0
                 }
-                self.unity_socket.send((json.dumps(stop_data) + '\n').encode())
+                self.send_to_unity(stop_data)
                 self.unity_socket.close()
             except:
                 pass

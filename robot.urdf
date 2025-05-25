@@ -1,48 +1,126 @@
 <?xml version="1.0"?>
-<robot name="simple_robot">
-  <!-- Ana gövde -->
+<robot name="car_robot">
+  <!-- Car body -->
   <link name="base_link">
     <visual>
       <geometry>
-        <box size="0.4 0.3 0.1"/>
+        <box size="0.4 0.4 0.15"/>
       </geometry>
-      <material name="blue">
-        <color rgba="0 0 1 1"/>
+      <origin xyz="0.1 0 0.1"/>
+      <material name="red">
+        <color rgba="0.8 0.1 0.1 1"/>
       </material>
     </visual>
   </link>
 
-  <!-- Sol tekerlek -->
-  <link name="left_wheel">
+  <!-- Car cabin/roof -->
+  <link name="cabin">
     <visual>
       <geometry>
-        <cylinder length="0.05" radius="0.05"/>
+        <box size="0.4 0.35 0.15"/>
       </geometry>
-      <material name="black">
-        <color rgba="0 0 0 1"/>
+      <material name="cabin_color">
+        <color rgba="0.2 0.2 0.2 1"/>
       </material>
     </visual>
   </link>
-  <joint name="left_wheel_joint" type="continuous">
+  <joint name="cabin_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="left_wheel"/>
-    <origin xyz="-0.15 0.15 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <child link="cabin"/>
+    <origin xyz="0 0 0.225"/>
   </joint>
 
-  <!-- Sağ tekerlek -->
-  <link name="right_wheel">
+  <!-- Four wheels -->
+  <link name="front_left_wheel">
     <visual>
       <geometry>
-        <cylinder length="0.05" radius="0.05"/>
+        <cylinder length="0.08" radius="0.1"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="front_left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="front_left_wheel"/>
+    <origin xyz="0.2 0.25 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="front_right_wheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.08" radius="0.1"/>
       </geometry>
       <material name="black"/>
     </visual>
   </link>
-  <joint name="right_wheel_joint" type="continuous">
+  <joint name="front_right_wheel_joint" type="continuous">
     <parent link="base_link"/>
-    <child link="right_wheel"/>
-    <origin xyz="-0.15 -0.15 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <child link="front_right_wheel"/>
+    <origin xyz="0.2 -0.25 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="rear_left_wheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.08" radius="0.1"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="-0.1 0.25 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="rear_right_wheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.08" radius="0.1"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.1 -0.25 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Headlights -->
+  <link name="headlight_left">
+    <visual>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+      <material name="yellow">
+        <color rgba="1 1 0 1"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="headlight_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="headlight_left"/>
+    <origin xyz="0.3 0.15 0.05"/>
+  </joint>
+
+  <link name="headlight_right">
+    <visual>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+      <material name="yellow"/>
+    </visual>
+  </link>
+  <joint name="headlight_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="headlight_right"/>
+    <origin xyz="0.3 -0.15 0.05"/>
   </joint>
 </robot>

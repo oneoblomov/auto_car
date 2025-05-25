@@ -280,6 +280,146 @@
                                 "cwd": "${workspaceFolder}/.."
                         }
                 },
+                // ==================== UNITY CONTROL ====================
+                {
+                        "label": "🎮 Launch Unity Project",
+                        "type": "shell",
+                        "command": "cd /home/kaplan/Downloads/arac && unity &",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "/home/kaplan/Downloads/arac"
+                        }
+                },
+                {
+                        "label": "🎮 Open Unity Project Automatically",
+                        "type": "shell",
+                        "command": "cd /home/kaplan/Downloads/arac && unity-editor -projectPath . &",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "/home/kaplan/Downloads/arac"
+                        }
+                },
+                {
+                        "label": "🔧 Check Unity TCP Connection",
+                        "type": "shell",
+                        "command": "echo 'Checking Unity TCP connection on port 9999...' && netstat -tuln | grep 9999 && echo 'TCP connections:' && netstat -an | grep 9999",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        }
+                },
+                {
+                        "label": "🎯 Force Autonomous Mode ON",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo 'Forcing autonomous mode...' && ros2 topic pub --rate 1 /driving_mode std_msgs/String 'data: \"autonomous\"' &",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🎯 Test Direct Motor Commands",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo 'Testing direct motor commands...' && ros2 topic pub --rate 10 /cmd_vel geometry_msgs/Twist '{linear: {x: 0.5}, angular: {z: 0.0}}' &",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🔍 Debug ROS2 Topics Real-time",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo '=== DEBUGGING ROS2 TOPICS ===' && echo 'Autonomous Status:' && timeout 3s ros2 topic echo /autonomous_status --once && echo -e '\\nDriving Mode:' && timeout 3s ros2 topic echo /driving_mode --once && echo -e '\\nCMD Vel:' && timeout 3s ros2 topic echo /cmd_vel --once && echo -e '\\nMotor Speeds:' && timeout 3s ros2 topic echo /motor_speeds --once",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🚗 Complete Autonomous Test Sequence",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo 'Starting complete autonomous test...' && echo '1. Setting autonomous mode...' && ros2 topic pub --once /driving_mode std_msgs/String 'data: \"autonomous\"' && sleep 2 && echo '2. Sending goal position...' && ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped '{header: {frame_id: \"map\"}, pose: {position: {x: 3.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' && sleep 2 && echo '3. Checking status...' && timeout 3s ros2 topic echo /autonomous_status --once",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🔄 Restart Motor Node Only",
+                        "type": "shell",
+                        "command": "source install/setup.bash && echo 'Restarting motor node...' && pkill -f motor_node; sleep 1 && ros2 run control motor_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "⚠️ Kill All ROS2 Processes",
+                        "type": "shell",
+                        "command": "echo 'Killing all ROS2 processes...' && pkill -f ros2 && pkill -f python3.*detect && pkill -f python3.*control && echo 'All ROS2 processes terminated.'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        }
+                },
+                {
+                        "label": "🚀 Complete Autonomous System Startup",
+                        "dependsOn": [
+                                "🚗 Start Autonomous Driving System"
+                        ],
+                        "dependsOrder": "sequence",
+                        "type": "shell",
+                        "command": "sleep 5 && source install/setup.bash && echo 'Setting autonomous mode...' && ros2 topic pub --once /driving_mode std_msgs/String 'data: \"autonomous\"' && sleep 2 && echo 'Sending test goal...' && ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped '{header: {frame_id: \"map\"}, pose: {position: {x: 2.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}' && echo 'Autonomous system ready!'",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false,
+                                "focus": true
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "🔧 Fix Unity AI Control",
+                        "type": "shell",
+                        "command": "echo 'Checking Unity TankController script...' && grep -n 'aiControlEnabled.*=' /home/kaplan/Downloads/arac/Assets/Scripts/TankController.cs | head -5",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "unity-control",
+                                "showReuseMessage": false
+                        }
+                },
                 // ==================== BUILD AND MONITORING ====================
                 {
                         "label": "🔨 Build All Packages",
