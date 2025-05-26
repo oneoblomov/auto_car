@@ -1,7 +1,6 @@
 {
         "version": "2.0.0",
         "tasks": [
-                // ==================== AUTONOMOUS DRIVING SYSTEM ====================
                 {
                         "label": "🚗 Start Autonomous Driving System",
                         "type": "shell",
@@ -16,19 +15,6 @@
                                 "cwd": "${workspaceFolder}/.."
                         },
                         "problemMatcher": []
-                },
-                {
-                        "label": "🤖 Start Motor Control Only",
-                        "type": "shell",
-                        "command": "source install/setup.bash && ros2 run control motor_node",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "autonomous-system",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "${workspaceFolder}/.."
-                        }
                 },
                 {
                         "label": "👁️ Start Obstacle Detection",
@@ -51,7 +37,7 @@
                                 "panel": "new",
                                 "group": "autonomous-system",
                                 "showReuseMessage": false
-                        },
+                        },      
                         "options": {
                                 "cwd": "${workspaceFolder}/.."
                         }
@@ -90,11 +76,26 @@
                                 "Run Get IMU Node",
                                 "Run Get RGBD Node",
                                 "Run Get Encoder Node",
-                                "Run Get Targeting Camera Node"
+                                "Run Get Targeting Camera Node",
+                                "Run Get Motor Control Node",
+                                "Run Get Back Camera Node",
                         ],
                         "dependsOrder": "parallel",
                         "type": "shell",
                         "command": "echo 'Starting ROS2 sensor nodes...'",
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
+                {
+                        "label": "Run Motor Control Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run control motor_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "autonomous-system",
+                                "showReuseMessage": false
+                        },
                         "options": {
                                 "cwd": "${workspaceFolder}/.."
                         }
@@ -164,7 +165,19 @@
                                 "cwd": "${workspaceFolder}/.."
                         }
                 },
-                // Rest of the file remains the same
+                {
+                        "label": "Run Get Back Camera Node",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run get back_camera_node",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-nodes",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
                 {
                         "label": "Start Static Transforms Split",
                         "dependsOn": [
@@ -172,7 +185,8 @@
                                 "Run Static Transform Publisher (map->imu_link)",
                                 "Run Static Transform Publisher (map->lidar_link)",
                                 "Run Static Transform Publisher (map->odom)",
-                                "Run Static Transform Publisher (map->camera_link)"
+                                "Run Static Transform Publisher (map->camera_link)",
+                                "Run Static Transform Publisher (map->back_camera_link)"
                         ],
                         "dependsOrder": "parallel",
                         "type": "shell",
@@ -246,6 +260,19 @@
                                 "cwd": "${workspaceFolder}/.."
                         }
                 },
+                {
+                        "label": "Run Static Transform Publisher (map->back_camera_link)",
+                        "type": "shell",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map back_camera_link",
+                        "presentation": {
+                                "panel": "new",
+                                "group": "ros2-static",
+                                "showReuseMessage": false
+                        },
+                        "options": {
+                                "cwd": "${workspaceFolder}/.."
+                        }
+                },
                 // ==================== COMPLETE SYSTEM STARTUP ====================
                 {
                         "label": "🚀 Start Complete System (Sensors + Autonomous)",
@@ -278,43 +305,6 @@
                         "command": "echo 'Starting all sensor ROS tasks...'",
                         "options": {
                                 "cwd": "${workspaceFolder}/.."
-                        }
-                },
-                // ==================== UNITY CONTROL ====================
-                {
-                        "label": "🎮 Launch Unity Project",
-                        "type": "shell",
-                        "command": "cd /home/kaplan/Downloads/arac && unity &",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "unity-control",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "/home/kaplan/Downloads/arac"
-                        }
-                },
-                {
-                        "label": "🎮 Open Unity Project Automatically",
-                        "type": "shell",
-                        "command": "cd /home/kaplan/Downloads/arac && unity-editor -projectPath . &",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "unity-control",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "/home/kaplan/Downloads/arac"
-                        }
-                },
-                {
-                        "label": "🔧 Check Unity TCP Connection",
-                        "type": "shell",
-                        "command": "echo 'Checking Unity TCP connection on port 9999...' && netstat -tuln | grep 9999 && echo 'TCP connections:' && netstat -an | grep 9999",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "unity-control",
-                                "showReuseMessage": false
                         }
                 },
                 {
@@ -370,19 +360,6 @@
                         }
                 },
                 {
-                        "label": "🔄 Restart Motor Node Only",
-                        "type": "shell",
-                        "command": "source install/setup.bash && echo 'Restarting motor node...' && pkill -f motor_node; sleep 1 && ros2 run control motor_node",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "unity-control",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "${workspaceFolder}/.."
-                        }
-                },
-                {
                         "label": "⚠️ Kill All ROS2 Processes",
                         "type": "shell",
                         "command": "echo 'Killing all ROS2 processes...' && pkill -f ros2 && pkill -f python3.*detect && pkill -f python3.*control && echo 'All ROS2 processes terminated.'",
@@ -411,48 +388,9 @@
                         }
                 },
                 {
-                        "label": "🔧 Fix Unity AI Control",
-                        "type": "shell",
-                        "command": "echo 'Checking Unity TankController script...' && grep -n 'aiControlEnabled.*=' /home/kaplan/Downloads/arac/Assets/Scripts/TankController.cs | head -5",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "unity-control",
-                                "showReuseMessage": false
-                        }
-                },
-                // ==================== BUILD AND MONITORING ====================
-                {
                         "label": "🔨 Build All Packages",
                         "type": "shell",
                         "command": "colcon build",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "build-system",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "${workspaceFolder}/.."
-                        },
-                        "problemMatcher": []
-                },
-                {
-                        "label": "🔨 Build Detect Package Only",
-                        "type": "shell",
-                        "command": "colcon build --packages-select detect",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "build-system",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "${workspaceFolder}/.."
-                        },
-                        "problemMatcher": []
-                },
-                {
-                        "label": "🔨 Build Control Package Only",
-                        "type": "shell",
-                        "command": "colcon build --packages-select control",
                         "presentation": {
                                 "panel": "new",
                                 "group": "build-system",
@@ -553,20 +491,6 @@
                         "options": {
                                 "cwd": "${workspaceFolder}/.."
                         }
-                },
-                {
-                        "label": "Build Workspace",
-                        "type": "shell",
-                        "command": "colcon build",
-                        "presentation": {
-                                "panel": "new",
-                                "group": "ros2-build",
-                                "showReuseMessage": false
-                        },
-                        "options": {
-                                "cwd": "${workspaceFolder}/.."
-                        },
-                        "problemMatcher": []
                 }
         ]
 }

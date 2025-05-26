@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otonom Sürüş Test Arayüzü</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --inactive: #d1d5db;
+            --bg: #f9fafb;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0.75rem;
+        }
+        
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+            text-align: center;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 4fr 1fr;
+            gap: 0.75rem;
+        }
+        
+        .action-bar {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 0.75rem;
+            height: auto;
+        }
+        
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        
+        .status, .output {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .output {
+            max-height: 80px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .node-status-list {
+            margin-bottom: 0.5rem;
+        }
+        
+        .node-status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem;
+        }
+        
+        .node-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+        
+        .node-dot.green { background: var(--success); }
+        .node-dot.red { background: var(--error); }
+        .node-dot.gray { background: var(--inactive); }
+        
+        .map-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 0.75rem;
+        }
+        
+        #map-canvas {
+            background: var(--bg);
+            border-radius: 6px;
+            width: 100%;
+            aspect-ratio: 1/1;
+            margin-bottom: 0.5rem;
+        }
+        
+        #robot-coords {
+            font-size: 0.75rem;
+            text-align: center;
+            color: var(--text-light);
+        }
+        
+        .goal-form {
+            display: flex;
+            gap: 0.35rem;
+            margin: 0.5rem 0;
+        }
+        
+        .goal-form input {
+            width: 50px;
+            padding: 0.35rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Otonom Sürüş Test Paneli</h1>
+        
+        <div class="dashboard">
+            <div>
+                <div class="action-bar">
+                    <button onclick="runTask('🚀 Start Complete System (Sensors + Autonomous)')">Tüm Sistemi Başlat</button>
+                    <button onclick="runTask('⚠️ Kill All ROS2 Processes')">Tümünü Durdur</button>
+                    <button onclick="runTask('🔨 Build All Packages')">Tümünü Derle</button>
+                    <button onclick="resetAll()">Tümünü Resetle</button>
+                </div>
+                
+                <div class="cards">
+                    <div class="card">
+                        <div class="card-title">Sensör Nodları</div>
+                        <div class="node-status-list" id="sensor-status-list"></div>
+                        <div class="btn-group">
+                            <button onclick="runTask('Run Get Lidar Node')">Lidar</button>
+                            <button onclick="runTask('Run Get IMU Node')">IMU</button>
+                            <button onclick="runTask('Run Get RGBD Node')">RGBD</button>
+                            <button onclick="runTask('Run Get Encoder Node')">Encoder</button>
+                            <button onclick="runTask('Run Get Targeting Camera Node')">Hedef Kam.</button>
+                            <button onclick="runTask('Run Get Motor Control Node')">Motor</button>
+                            <button onclick="runTask('Start ROS Nodes Split')">Tümünü Başlat</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Statik Transform Nodları</div>
+                        <div class="node-status-list" id="static-status-list"></div>
+                        <div class="btn-group">
+                            <button onclick="runTask('Run Static Transform Publisher')">camera_link</button>
+                            <button onclick="runTask('Run Static Transform Publisher (map->imu_link)')">imu_link</button>
+                            <button onclick="runTask('Run Static Transform Publisher (map->lidar_link)')">lidar_link</button>
+                            <button onclick="runTask('Run Static Transform Publisher (map->odom)')">odom</button>
+                            <button onclick="runTask('Run Static Transform Publisher (map->camera_link)')">camera_map</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card"></div>
+                        <div class="card-title">Otonom Sürüş & Kontrol</div>
+                        <div class="node-status-list" id="autonomous-status-list"></div>
+                        <div class="btn-group"></div>
+                            <button onclick="runTask('🚗 Start Autonomous Driving System')">Otonom Sürüş</button>
+                            <button onclick="runTask('👁️ Start Obstacle Detection')">Engel Algılama</button>
+                            <button onclick="runTask('🗺️ Start Path Planner')">Yol Planlayıcı</button>
+                            <button onclick="runTask('🧠 Start Behavior Manager')">Davranış Yönetici</button>
+                            <button onclick="runTask('🎮 Start Control Interface')">Kontrol Arayüzü</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">Mod & Acil Durum</div>
+                        <div class="btn-group">
+                            <button onclick="runTask('🎯 Set Autonomous Mode')">Otonom Mod</button>
+                            <button onclick="runTask('🎯 Set Manual Mode')">Manuel Mod</button>
+                            <button onclick="runTask('🚨 Emergency Stop')">Acil Durdur</button>
+                            <button onclick="runTask('✅ Clear Emergency Stop')">Acil Durumu Kaldır</button>
+                        </div>
+                        
+                        <div class="card-title" style="margin-top: 0.5rem">Hedef Pozisyon</div>
+                        <form class="goal-form" onsubmit="sendGoal(event)"></form>
+                            <input type="number" id="goal-x" placeholder="X" step="0.1" required>
+                            <input type="number" id="goal-y" placeholder="Y" step="0.1" required>
+                            <button type="submit">Hedef Gönder</button>
+                        </form>
+                    </div>
+                    
+                    <div class="card map-card" style="grid-column: span 2;"></div>
+                        <div class="card-title">Harita & Robot Konumu</div>
+                        <canvas id="map-canvas" width="340" height="200"></canvas>
+                        <div id="robot-coords">Konum: (X: 0.0, Y: 0.0)</div>
+                    </div>
+                </div>
+                
+                <div class="status" id="status">Durum: -</div>
+                <div class="output" id="output">Çıktı: -</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // JavaScript remains the same
+        const sensorNodes = [
+          { name: 'Lidar', key: 'lidar', status: 'gray' },
+          { name: 'IMU', key: 'imu', status: 'gray' },
+          { name: 'RGBD Kamera', key: 'rgbd', status: 'gray' },
+          { name: 'Encoder', key: 'encoder', status: 'gray' },
+          { name: 'Hedef Kamera', key: 'targeting', status: 'gray' },
+          { name: 'Motor Kontrol', key: 'motor', status: 'gray' }
+        ];
+        const staticNodes = [
+          { name: 'camera_link', key: 'camera_link', status: 'gray' },
+          { name: 'imu_link', key: 'imu_link', status: 'gray' },
+          { name: 'lidar_link', key: 'lidar_link', status: 'gray' },
+          { name: 'odom', key: 'odom', status: 'gray' },
+          { name: 'camera_link (map)', key: 'camera_link_map', status: 'gray' }
+        ];
+        const autonomousNodes = [
+          { name: 'Otonom Sürüş', key: 'autonomous', status: 'gray' },
+          { name: 'Engel Algılama', key: 'obstacle', status: 'gray' },
+          { name: 'Yol Planlayıcı', key: 'planner', status: 'gray' },
+          { name: 'Davranış Yöneticisi', key: 'behavior', status: 'gray' },
+          { name: 'Kontrol Arayüzü', key: 'control', status: 'gray' }
+        ];
+        function renderNodeStatus(list, elementId) {
+          const el = document.getElementById(elementId);
+          el.innerHTML = list.map(node =>
+            `<div class="node-status-item"><span class="node-dot ${node.status}"></span>${node.name}</div>`
+          ).join('');
+        }
+        function updateAllNodeStatus() {
+          renderNodeStatus(sensorNodes, 'sensor-status-list');
+          renderNodeStatus(staticNodes, 'static-status-list');
+          renderNodeStatus(autonomousNodes, 'autonomous-status-list');
+        }
+        // Simulate node status (replace with real API polling)
+        setInterval(() => {
+          // Simulate random node health for demo
+          sensorNodes.forEach(n => n.status = Math.random() > 0.2 ? 'green' : (Math.random() > 0.5 ? 'red' : 'gray'));
+          staticNodes.forEach(n => n.status = Math.random() > 0.2 ? 'green' : (Math.random() > 0.5 ? 'red' : 'gray'));
+          autonomousNodes.forEach(n => n.status = Math.random() > 0.2 ? 'green' : (Math.random() > 0.5 ? 'red' : 'gray'));
+          updateAllNodeStatus();
+        }, 3000);
+        updateAllNodeStatus();
+        // Simple map & robot position
+        let robotX = 170, robotY = 100;
+        function drawMap() {
+          const canvas = document.getElementById('map-canvas');
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Draw map grid
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 1;
+          for (let i = 0; i <= 340; i += 34) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 200); ctx.stroke();
+          }
+          for (let i = 0; i <= 200; i += 34) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(340, i); ctx.stroke();
+          }
+          // Draw robot
+          ctx.beginPath();
+          ctx.arc(robotX, robotY, 12, 0, 2 * Math.PI);
+          ctx.fillStyle = '#3b82f6';
+          ctx.fill();
+          ctx.strokeStyle = '#2563eb';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Draw heading
+          ctx.beginPath();
+          ctx.moveTo(robotX, robotY);
+          ctx.lineTo(robotX + 15, robotY);
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        drawMap();
+        // Simulate robot movement (replace with real data)
+        setInterval(() => {
+          robotX = 170 + Math.floor(Math.random() * 120 - 60);
+          robotY = 100 + Math.floor(Math.random() * 80 - 40);
+          drawMap();
+          document.getElementById('robot-coords').textContent = `Konum: (X: ${((robotX-170)/34.0).toFixed(2)}, Y: ${((robotY-100)/34.0).toFixed(2)})`;
+        }, 4000);
+        async function runTask(label) {
+          setStatus('Çalışıyor: ' + label);
+          setOutput('-');
+          try {
+            const response = await fetch(`/run-task?label=${encodeURIComponent(label)}`);
+            const data = await response.text();
+            setOutput(data);
+            setStatus('Tamamlandı: ' + label);
+          } catch (e) {
+            setStatus('Hata: ' + label);
+            setOutput(e.toString());
+          }
+        }
+        function setStatus(msg) {
+          document.getElementById('status').textContent = 'Durum: ' + msg;
+        }
+        function setOutput(msg) {
+          document.getElementById('output').textContent = 'Çıktı: ' + msg;
+        }
+        async function sendGoal(e) {
+          e.preventDefault();
+          const x = document.getElementById('goal-x').value;
+          const y = document.getElementById('goal-y').value;
+          setStatus('Hedef gönderiliyor...');
+          setOutput('-');
+          try {
+            const response = await fetch(`/send-goal?x=${x}&y=${y}`);
+            const data = await response.text();
+            setOutput(data);
+            setStatus('Hedef gönderildi!');
+          } catch (e) {
+            setStatus('Hedef gönderilemedi!');
+            setOutput(e.toString());
+          }
+        }
+        function resetAll() {
+          setStatus('Tüm sistem resetleniyor...');
+          setOutput('-');
+          runTask('⚠️ Kill All ROS2 Processes');
+          setTimeout(() => runTask('🚀 Start Complete System (Sensors + Autonomous)'), 2000);
+        }
+    </script>
+</body>
+</html>

@@ -25,6 +25,22 @@ class DWAPathPlannerNode(Node):
             10
         )
         
+        # Statik harita subscriber ekle
+        self.static_map_sub = self.create_subscription(
+            OccupancyGrid,
+            '/map',
+            self.static_map_callback,
+            10
+        )
+        
+        # SLAM harita subscriber ekle
+        self.slam_map_sub = self.create_subscription(
+            OccupancyGrid,
+            '/slam_map',
+            self.slam_map_callback,
+            10
+        )
+        
         self.goal_sub = self.create_subscription(
             PoseStamped,
             '/goal_pose',
@@ -66,11 +82,17 @@ class DWAPathPlannerNode(Node):
         self.goal_x = None
         self.goal_y = None
         
-        # Engel haritası
-        self.obstacle_map = None
+        # Harita verileri
+        self.obstacle_map = None  # Dinamik engel haritası
+        self.static_map = None    # Statik harita
+        self.slam_map = None      # SLAM haritası
+        self.combined_map = None  # Birleştirilmiş harita
+        
         self.map_resolution = 0.1
         self.map_origin_x = 0.0
         self.map_origin_y = 0.0
+        self.map_width = 0
+        self.map_height = 0
         
         # LiDAR verileri
         self.latest_lidar = None
@@ -78,14 +100,68 @@ class DWAPathPlannerNode(Node):
         # Timer
         self.timer = self.create_timer(0.1, self.planning_loop)  # 10 Hz
         
-        self.get_logger().info("DWA Path Planner başlatıldı")
+        self.get_logger().info("DWA Path Planner (Multi-Map Support) başlatıldı")
+
+    def static_map_callback(self, msg):
+        """Statik harita callback"""
+        self.static_map = np.array(msg.data).reshape((msg.info.height, msg.info.width))
+        self.update_map_info(msg)
+        self.combine_maps()
+        self.get_logger().info("Statik harita güncellendi")
+    
+    def slam_map_callback(self, msg):
+        """SLAM haritası callback"""
+        self.slam_map = np.array(msg.data).reshape((msg.info.height, msg.info.width))
+        self.update_map_info(msg)
+        self.combine_maps()
+        self.get_logger().debug("SLAM haritası güncellendi")
 
     def obstacle_map_callback(self, msg):
-        """Engel haritası callback"""
+        """Dinamik engel haritası callback"""
         self.obstacle_map = np.array(msg.data).reshape((msg.info.height, msg.info.width))
+        self.update_map_info(msg)
+        self.combine_maps()
+    
+    def update_map_info(self, msg):
+        """Harita bilgilerini güncelle"""
         self.map_resolution = msg.info.resolution
         self.map_origin_x = msg.info.origin.position.x
         self.map_origin_y = msg.info.origin.position.y
+        self.map_width = msg.info.width
+        self.map_height = msg.info.height
+    
+    def combine_maps(self):
+        """Tüm haritaları birleştir"""
+        if self.static_map is None:
+            # Statik harita yoksa sadece dinamik haritayı kullan
+            if self.obstacle_map is not None:
+                self.combined_map = self.obstacle_map.copy()
+            elif self.slam_map is not None:
+                self.combined_map = self.slam_map.copy()
+            return
+        
+        # Statik harita ile başla
+        self.combined_map = self.static_map.copy()
+        
+        # SLAM haritasını ekle (eğer varsa)
+        if self.slam_map is not None:
+            # SLAM haritasından bilinmeyen alanları al
+            unknown_mask = self.combined_map == -1
+            known_slam_mask = self.slam_map != -1
+            update_mask = unknown_mask & known_slam_mask
+            self.combined_map[update_mask] = self.slam_map[update_mask]
+        
+        # Dinamik engelleri ekle (en yüksek öncelik)
+        if self.obstacle_map is not None:
+            # Dinamik engel tespiti olan yerleri güncelle
+            dynamic_obstacle_mask = self.obstacle_map == 100
+            self.combined_map[dynamic_obstacle_mask] = 100
+            
+            # Dinamik serbest alanları güncelle (statik haritadaki bilinmeyen alanlarda)
+            static_unknown_mask = self.static_map == -1
+            dynamic_free_mask = self.obstacle_map == 0
+            update_free_mask = static_unknown_mask & dynamic_free_mask
+            self.combined_map[update_free_mask] = 0
 
     def goal_callback(self, msg):
         """Hedef callback"""
@@ -100,6 +176,10 @@ class DWAPathPlannerNode(Node):
     def planning_loop(self):
         """Ana planlama döngüsü"""
         if self.goal_x is None or self.goal_y is None:
+            return
+        
+        # Birleştirilmiş harita yoksa çık
+        if self.combined_map is None:
             return
             
         # Hedefe ulaştık mı kontrol et
@@ -204,7 +284,47 @@ class DWAPathPlannerNode(Node):
         return total_cost
 
     def calc_obstacle_cost(self, trajectory: np.ndarray) -> float:
-        """Engel maliyetini hesapla"""
+        """Engel maliyetini hesapla (birleştirilmiş harita kullanarak)"""
+        if self.combined_map is None:
+            # Fallback: LiDAR verisi kullan
+            return self.calc_lidar_obstacle_cost(trajectory)
+        
+        min_distance = float('inf')
+        
+        for point in trajectory:
+            x, y = point[0], point[1]
+            
+            # Harita koordinatlarına çevir
+            map_x = int((x - self.map_origin_x) / self.map_resolution)
+            map_y = int((y - self.map_origin_y) / self.map_resolution)
+            
+            # Harita sınırları içinde mi kontrol et
+            if 0 <= map_x < self.map_width and 0 <= map_y < self.map_height:
+                # Engel kontrolü
+                if self.combined_map[map_y, map_x] > 50:  # %50'den fazla engel olasılığı
+                    return float('inf')  # Çarpışma riski
+                
+                # Çevredeki engellere mesafe hesapla
+                for dx in range(-3, 4):  # 7x7 alan kontrol et
+                    for dy in range(-3, 4):
+                        check_x = map_x + dx
+                        check_y = map_y + dy
+                        
+                        if (0 <= check_x < self.map_width and 
+                            0 <= check_y < self.map_height and
+                            self.combined_map[check_y, check_x] > 50):
+                            
+                            distance = math.sqrt(dx**2 + dy**2) * self.map_resolution
+                            min_distance = min(min_distance, distance)
+        
+        # Çok yakın engeller için yüksek maliyet
+        if min_distance < 0.3:  # 30 cm yakınsa
+            return float('inf')
+        
+        return 1.0 / min_distance if min_distance < 2.0 else 0.0
+    
+    def calc_lidar_obstacle_cost(self, trajectory: np.ndarray) -> float:
+        """LiDAR verisi ile engel maliyeti hesapla (fallback)"""
         if self.latest_lidar is None:
             return 0.0
         

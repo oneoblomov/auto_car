@@ -24,7 +24,8 @@ setup(
             'lidar_node = get.lidar_node:main',
             'encoder_node = get.encoder_node:main',
             'rgbd_camera_node = get.rgbd_camera_node:main',
-            'targeting_camera_node = get.targeting_camera_node:main'
+            'targeting_camera_node = get.targeting_camera_node:main',
+            'back_camera_node = get.back_camera_node:main',
         ],
     },
 )

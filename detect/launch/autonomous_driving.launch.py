@@ -3,6 +3,7 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 
 
 def generate_launch_description():
@@ -12,6 +13,18 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='Use simulation time'
+        ),
+        
+        DeclareLaunchArgument(
+            'enable_slam',
+            default_value='true',
+            description='Enable SLAM for real-time mapping'
+        ),
+        
+        DeclareLaunchArgument(
+            'enable_map_server',
+            default_value='false',
+            description='Enable static map server'
         ),
         
         LogInfo(msg="🚀 Tank Robot Otonom Sürüş Sistemi Başlatılıyor..."),
@@ -24,6 +37,41 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'use_sim_time': LaunchConfiguration('use_sim_time')
+            }]
+        ),
+        
+        # Map server node (conditional)
+        Node(
+            package='detect',
+            executable='map_server',
+            name='map_server',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('enable_map_server')),
+            parameters=[{
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'map_width': 20.0,
+                'map_height': 20.0,
+                'resolution': 0.1,
+                'frame_id': 'map'
+            }]
+        ),
+        
+        # SLAM node (conditional)
+        Node(
+            package='detect',
+            executable='slam_node',
+            name='slam_node',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('enable_slam')),
+            parameters=[{
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'map_width': 20.0,
+                'map_height': 20.0,
+                'resolution': 0.1,
+                'num_particles': 100,
+                'map_frame': 'map',
+                'base_frame': 'base_link',
+                'odom_frame': 'odom'
             }]
         ),
         
