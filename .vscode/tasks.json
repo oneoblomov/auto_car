@@ -198,7 +198,7 @@
                 {
                         "label": "Run Static Transform Publisher",
                         "type": "shell",
-                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map camera_link",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0.63 0 0.26 0 0 0 1 map camera_link",
                         "presentation": {
                                 "panel": "new",
                                 "group": "ros2-static",
@@ -224,7 +224,8 @@
                 {
                         "label": "Run Static Transform Publisher (map->lidar_link)",
                         "type": "shell",
-                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 1 map lidar_link",
+                        "command": "source install/setup.bash && ros2 run tf2_ros static_transform_publisher 0.63 0 0.26 0 0 0 1 map lidar_link",
+                        // 0.702 -0.433
                         "presentation": {
                                 "panel": "new",
                                 "group": "ros2-static",
