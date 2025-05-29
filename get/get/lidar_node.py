@@ -147,12 +147,23 @@ class LidarNode(Node):
             if len(parts) < 3:
                 continue
             try:
-                x = float(parts[0])
-                y = float(parts[1])
-                z = float(parts[2])
-                if not (np.isfinite(x) and np.isfinite(y) and np.isfinite(z)):
+                # Unity koordinatlarını ROS koordinatlarına dönüştür
+                unity_x = float(parts[0])
+                unity_y = float(parts[1]) 
+                unity_z = float(parts[2])
+                
+                # Unity -> ROS koordinat dönüşümü
+                # Unity (left-handed, Y-up): +X=sağ, +Y=yukarı, +Z=ileri
+                # ROS (right-handed, Z-up): +X=ileri, +Y=sol, +Z=yukarı
+                ros_x = unity_z   # Unity Z (ileri) -> ROS X (ileri)
+                ros_y = -unity_x  # Unity X (sağ) -> ROS -Y (sol)
+                ros_z = unity_y   # Unity Y (yukarı) -> ROS Z (yukarı)
+                
+                if not (np.isfinite(ros_x) and np.isfinite(ros_y) and np.isfinite(ros_z)):
                     continue
-                dist = (x**2 + y**2 + z**2) ** 0.5
+                    
+                # 2D LiDAR için sadece XY düzlemindeki mesafeyi hesapla
+                dist = (ros_x**2 + ros_y**2) ** 0.5
                 ranges.append(dist)
             except Exception:
                 continue
