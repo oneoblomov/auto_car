@@ -181,7 +181,7 @@ class AutonomousDriverNode(Node):
         self.cmd_vel_pub.publish(self.manual_cmd)
 
     def handle_autonomous_mode(self):
-        """Otonom mod kontrolü"""
+        """Gelişmiş otonom mod kontrolü"""
         # Hedefe ulaştık mı kontrol et
         if self.goal_x is not None and self.goal_y is not None:
             distance_to_goal = math.sqrt((self.goal_x - self.robot_x)**2 + (self.goal_y - self.robot_y)**2)
@@ -190,27 +190,150 @@ class AutonomousDriverNode(Node):
                 self.get_logger().info("Hedefe ulaşıldı!")
                 return
         
+        # Acil durum kontrolü - çok yakın engel
+        immediate_obstacle = self.check_immediate_obstacle()
+        if immediate_obstacle:
+            self.handle_emergency_obstacle()
+            return
+        
         # Yol açık mı kontrol et
-        if not self.is_path_clear():
-            # Basit engel kaçınma
-            cmd_vel = Twist()
-            cmd_vel.linear.x = 0.2
-            cmd_vel.angular.z = 0.5  # Sola dön
-            self.cmd_vel_pub.publish(cmd_vel)
+        path_status = self.analyze_path()
+        
+        if path_status['blocked']:
+            # Engel kaçınma manevrası
+            self.handle_obstacle_avoidance(path_status)
         else:
             # Hedefe doğru git
             if self.goal_x is not None and self.goal_y is not None:
-                # Hedefe yönelim hesapla
-                target_angle = math.atan2(self.goal_y - self.robot_y, self.goal_x - self.robot_x)
-                angle_diff = target_angle - self.robot_yaw
-                
-                cmd_vel = Twist()
-                cmd_vel.linear.x = 0.5
-                cmd_vel.angular.z = angle_diff * 0.5  # Açı düzeltmesi
-                self.cmd_vel_pub.publish(cmd_vel)
+                self.navigate_to_goal()
             else:
-                # Hedef yok, dur
-                self.stop_robot()
+                # Hedef yok, keşif modu
+                self.explore_mode()
+
+    def check_immediate_obstacle(self) -> bool:
+        """Acil durum - çok yakın engel kontrolü"""
+        if self.latest_lidar is None:
+            return False
+        
+        for i, range_val in enumerate(self.latest_lidar.ranges):
+            if (range_val < self.latest_lidar.range_min or 
+                range_val > self.latest_lidar.range_max):
+                continue
+            
+            angle = self.latest_lidar.angle_min + i * self.latest_lidar.angle_increment
+            
+            # Önde 90 derece alanını kontrol et
+            if -math.pi/4 < angle < math.pi/4:
+                if range_val < 0.4:  # 40 cm yakınsa acil durum
+                    return True
+        return False
+    
+    def handle_emergency_obstacle(self):
+        """Acil durum engel müdahalesi"""
+        cmd_vel = Twist()
+        cmd_vel.linear.x = -0.3  # Geri git
+        cmd_vel.angular.z = 0.0
+        self.cmd_vel_pub.publish(cmd_vel)
+        self.get_logger().warn("ACİL DURUM: Geri çekiliyor!")
+    
+    def analyze_path(self) -> dict:
+        """Yol analizini yap"""
+        if self.latest_lidar is None:
+            return {'blocked': True, 'left_clear': False, 'right_clear': False, 'front_distance': 0.0}
+        
+        front_distances = []
+        left_distances = []
+        right_distances = []
+        
+        for i, range_val in enumerate(self.latest_lidar.ranges):
+            if (range_val < self.latest_lidar.range_min or 
+                range_val > self.latest_lidar.range_max):
+                continue
+            
+            angle = self.latest_lidar.angle_min + i * self.latest_lidar.angle_increment
+            
+            if -math.pi/6 < angle < math.pi/6:  # Ön
+                front_distances.append(range_val)
+            elif math.pi/6 <= angle < math.pi/2:  # Sol
+                left_distances.append(range_val)
+            elif -math.pi/2 <= angle < -math.pi/6:  # Sağ
+                right_distances.append(range_val)
+        
+        front_avg = np.mean(front_distances) if front_distances else float('inf')
+        left_avg = np.mean(left_distances) if left_distances else float('inf')
+        right_avg = np.mean(right_distances) if right_distances else float('inf')
+        
+        return {
+            'blocked': front_avg < 1.5,  # 1.5 metre altında engel var
+            'left_clear': left_avg > 2.0,
+            'right_clear': right_avg > 2.0,
+            'front_distance': front_avg,
+            'left_distance': left_avg,
+            'right_distance': right_avg
+        }
+    
+    def handle_obstacle_avoidance(self, path_status: dict):
+        """Engel kaçınma manevrası"""
+        cmd_vel = Twist()
+        
+        # En iyi dönüş yönünü belirle
+        if path_status['left_clear'] and not path_status['right_clear']:
+            # Sol açık, sola dön
+            cmd_vel.angular.z = 0.6
+            cmd_vel.linear.x = 0.2
+            self.get_logger().info("Sol tarafa dönüyor")
+        elif path_status['right_clear'] and not path_status['left_clear']:
+            # Sağ açık, sağa dön
+            cmd_vel.angular.z = -0.6
+            cmd_vel.linear.x = 0.2
+            self.get_logger().info("Sağ tarafa dönüyor")
+        elif path_status['left_distance'] > path_status['right_distance']:
+            # Sol taraf daha uzak
+            cmd_vel.angular.z = 0.5
+            cmd_vel.linear.x = 0.1
+            self.get_logger().info("Sol daha uzak, sola dönüyor")
+        else:
+            # Sağ taraf daha uzak
+            cmd_vel.angular.z = -0.5
+            cmd_vel.linear.x = 0.1
+            self.get_logger().info("Sağ daha uzak, sağa dönüyor")
+        
+        self.cmd_vel_pub.publish(cmd_vel)
+    
+    def navigate_to_goal(self):
+        """Hedefe doğru navigasyon"""
+        # Hedefe yönelim hesapla
+        if self.goal_x is None or self.goal_y is None:
+            self.get_logger().warn("Hedef koordinatları tanımsız!")
+            return
+        target_angle = math.atan2(self.goal_y - self.robot_y, self.goal_x - self.robot_x)
+        angle_diff = target_angle - self.robot_yaw
+        
+        # Açı farkını normalize et
+        while angle_diff > math.pi:
+            angle_diff -= 2 * math.pi
+        while angle_diff < -math.pi:
+            angle_diff += 2 * math.pi
+        
+        cmd_vel = Twist()
+        
+        # Açı farkı büyükse önce dön
+        if abs(angle_diff) > math.pi/4:  # 45 derece
+            cmd_vel.linear.x = 0.2
+            cmd_vel.angular.z = 0.8 if angle_diff > 0 else -0.8
+        else:
+            # Normal navigasyon
+            cmd_vel.linear.x = 0.6
+            cmd_vel.angular.z = angle_diff * 0.5
+        
+        self.cmd_vel_pub.publish(cmd_vel)
+    
+    def explore_mode(self):
+        """Keşif modu - hedef yoksa"""
+        cmd_vel = Twist()
+        cmd_vel.linear.x = 0.3
+        cmd_vel.angular.z = 0.1  # Hafif sola dön
+        self.cmd_vel_pub.publish(cmd_vel)
 
     def start_autonomous_mode(self):
         """Otonom modu başlat"""

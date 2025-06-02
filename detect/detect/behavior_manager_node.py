@@ -52,12 +52,12 @@ class BehaviorManagerNode(Node):
         self.latest_lidar = None
         self.input_cmd = Twist()
         
-        # Davranış parametreleri
-        self.emergency_distance = 0.3  # metre
-        self.obstacle_distance = 0.8  # metre
+        # Davranış parametreleri - Daha hassas ayarlar
+        self.emergency_distance = 0.4  # metre (artırıldı)
+        self.obstacle_distance = 1.2  # metre (artırıldı)
         self.stuck_threshold = 0.1  # m/s
-        self.stuck_time_threshold = 3.0  # saniye
-        self.turn_duration = 2.0  # saniye
+        self.stuck_time_threshold = 2.0  # saniye (kısaltıldı)
+        self.turn_duration = 1.5  # saniye (kısaltıldı)
         
         # Durum izleme
         self.last_positions = []
@@ -250,29 +250,71 @@ class BehaviorManagerNode(Node):
         return cmd
 
     def obstacle_avoidance_behavior(self, distances: dict) -> Twist:
-        """Engel kaçınma davranışı"""
+        """Gelişmiş engel kaçınma davranışı"""
         cmd = Twist()
         
-        # Bug algoritması benzeri davranış
+        # Acil durum kontrolü
+        if distances['emergency_zone'] or distances['front'] < self.emergency_distance:
+            # Acil dur ve geri git
+            cmd.linear.x = -0.3
+            cmd.angular.z = 0.0
+            self.get_logger().warn("ACİL DURUM: Çok yakın engel!")
+            return cmd
+        
+        # Önde engel var mı?
         if distances['front'] < self.obstacle_distance:
-            # Önde engel var
-            if distances['left'] > distances['right']:
-                # Sola git
-                cmd.angular.z = 0.5
-                cmd.linear.x = 0.2
-            else:
-                # Sağa git
-                cmd.angular.z = -0.5
-                cmd.linear.x = 0.2
-        else:
-            # Önde engel yok, ilerle
-            cmd.linear.x = 0.5
+            # Durma ve dönme stratejisi
+            cmd.linear.x = 0.0  # Dur
             
-            # Duvar takibi için hafif düzeltme
-            if distances['right'] < distances['left'] and distances['right'] < 1.0:
-                cmd.angular.z = 0.1  # Duvardan uzaklaş
-            elif distances['left'] < distances['right'] and distances['left'] < 1.0:
-                cmd.angular.z = -0.1  # Duvardan uzaklaş
+            # En iyi dönüş yönünü belirle
+            left_clear = distances['left'] > self.obstacle_distance * 1.5
+            right_clear = distances['right'] > self.obstacle_distance * 1.5
+            front_left_clear = distances['front_left'] > self.obstacle_distance
+            front_right_clear = distances['front_right'] > self.obstacle_distance
+            
+            if left_clear and front_left_clear:
+                # Sol taraf daha açık
+                cmd.angular.z = 0.8
+                self.get_logger().info("Sola dönüyor - sol taraf açık")
+            elif right_clear and front_right_clear:
+                # Sağ taraf daha açık
+                cmd.angular.z = -0.8
+                self.get_logger().info("Sağa dönüyor - sağ taraf açık")
+            elif distances['left'] > distances['right']:
+                # Sol taraf daha uzak
+                cmd.angular.z = 0.6
+                self.get_logger().info("Sola dönüyor - sol daha uzak")
+            else:
+                # Sağ taraf daha uzak
+                cmd.angular.z = -0.6
+                self.get_logger().info("Sağa dönüyor - sağ daha uzak")
+                
+        elif distances['front'] < self.obstacle_distance * 1.5:
+            # Orta mesafede engel - yavaşla ve hafif dön
+            cmd.linear.x = 0.3
+            
+            if distances['left'] > distances['right']:
+                cmd.angular.z = 0.3
+            else:
+                cmd.angular.z = -0.3
+                
+        else:
+            # Önde engel yok, normal ilerleme
+            cmd.linear.x = 0.6
+            
+            # Duvar takibi optimizasyonu
+            if distances['right'] < 1.2 and distances['right'] > 0.4:
+                # Sağ duvar takibi
+                cmd.angular.z = 0.1
+            elif distances['left'] < 1.2 and distances['left'] > 0.4:
+                # Sol duvar takibi
+                cmd.angular.z = -0.1
+            else:
+                cmd.angular.z = 0.0
+        
+        # Güvenlik sınırları
+        cmd.linear.x = max(-0.5, min(0.8, cmd.linear.x))
+        cmd.angular.z = max(-1.2, min(1.2, cmd.angular.z))
         
         return cmd
 

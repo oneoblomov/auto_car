@@ -40,6 +40,17 @@ def generate_launch_description():
             }]
         ),
         
+        # TF Publisher node for coordinate transforms
+        Node(
+            package='detect',
+            executable='tf_publisher',
+            name='tf_publisher',
+            output='screen',
+            parameters=[{
+                'use_sim_time': LaunchConfiguration('use_sim_time')
+            }]
+        ),
+        
         # Map server node (conditional)
         Node(
             package='detect',

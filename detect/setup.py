@@ -31,6 +31,7 @@ setup(
             'control_interface = detect.control_interface_node:main',
             'map_server = detect.map_server_node:main',
             'slam_node = detect.slam_node:main',
+            'tf_publisher = detect.tf_publisher_node:main',
         ],
     },
 )
