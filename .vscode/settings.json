@@ -1,0 +1,34 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/kaplan/ros2_ws/install/ui/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/plan/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/manage/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_targeting_camera/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_rgbd/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_lidar/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_imu/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_encoder/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/detect/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/control/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "/home/kaplan/Apache/Spark/spark-3.5.5-bin-hadoop3/python",
+        ""
+    ],
+    "python.analysis.extraPaths": [
+        "/home/kaplan/ros2_ws/install/ui/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/plan/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/manage/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_targeting_camera/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_rgbd/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_lidar/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_imu/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get_encoder/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/get/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/detect/lib/python3.12/site-packages",
+        "/home/kaplan/ros2_ws/install/control/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "/home/kaplan/Apache/Spark/spark-3.5.5-bin-hadoop3/python",
+        ""
+    ]
+}

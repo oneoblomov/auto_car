@@ -74,8 +74,6 @@ class ControlInterface(Node):
         print("SÜRÜŞ MODLARI:")
         print("  m  - Manuel mod")
         print("  a  - Otonom mod")
-        print("  w  - Duvar takip modu")
-        print("  e  - Keşif modu")
         print("")
         print("MANUEL KONTROL (Manuel modda):")
         print("  w  - İleri")
@@ -139,10 +137,6 @@ class ControlInterface(Node):
             self.change_mode("manual")
         elif command == 'a':
             self.change_mode("autonomous")
-        elif command == 'w' and self.current_mode != "manual":
-            self.change_mode("follow_wall")
-        elif command == 'e':
-            self.change_mode("explore")
         
         # Manuel kontrol komutları
         elif self.current_mode == "manual":
@@ -234,7 +228,6 @@ class ControlInterface(Node):
                   f"{self.autonomous_status.get('position', {}).get('y', 0):.2f})")
             print(f"  Yön açısı: {self.autonomous_status.get('position', {}).get('yaw', 0):.2f} rad")
             print(f"  Yol durumu: {'✅ Açık' if self.autonomous_status.get('path_clear', False) else '❌ Engelli'}")
-            print(f"  Keşif ilerlemesi: {self.autonomous_status.get('exploration_progress', '0/0')}")
         
         if self.behavior_status:
             print("\n🧠 Davranış Durumu:")

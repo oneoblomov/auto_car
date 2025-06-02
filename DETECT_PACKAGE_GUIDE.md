@@ -1,26 +1,12 @@
 # 🤖 DETECT Paketi Kullanım Kılavuzu
 
-## 📋 İçindekiler
-
-- [Genel Bakış](#genel-bakış)
-- [Sistem Mimarisi](#sistem-mimarisi)
-- [Node'lar ve Görevleri](#nodelar-ve-görevleri)
-- [Hızlı Başlangıç](#hızlı-başlangıç)
-- [Sürüş Modları](#sürüş-modları)
-- [Topic'ler ve Mesajlar](#topicler-ve-mesajlar)
-- [Konfigürasyon](#konfigürasyon)
-- [Sorun Giderme](#sorun-giderme)
-- [İleri Seviye Kullanım](#ileri-seviye-kullanım)
-
----
-
 ## 🎯 Genel Bakış
 
 **Detect** paketi, tank robotunun otonom sürüş sisteminin beyni görevi görür. Bu paket şu ana bileşenleri içerir:
 
 - **Engel Algılama**: LiDAR ve kamera ile çevre algısı
 - **Yol Planlama**: DWA algoritmasıyla optimal rota hesaplama
-- **Otonom Sürüş**: Çoklu mod destekli akıllı sürüş kontrolü
+- **Otonom Sürüş**: 2 mod destekli akıllı sürüş kontrolü (Manuel ve Otonom)
 - **Davranış Yönetimi**: Güvenlik ve acil durum kontrolü
 - **Kontrol Arayüzü**: Kullanıcı etkileşimi ve izleme
 
@@ -78,7 +64,7 @@
 
 **Görev**: Ana otonom sürüş kontrolcüsü
 
-- 4 farklı sürüş modu yönetimi
+- 2 temel sürüş modu yönetimi (Manuel ve Otonom)
 - Hedef belirleme ve takip
 - Acil durum koordinasyonu
 - Sistem durumu izleme
@@ -135,9 +121,9 @@ ros2 topic pub --once /driving_mode std_msgs/String 'data: "autonomous"'
 
 # Hedef gönderme
 ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped '{
-  header: {frame_id: "map"}, 
+  header: {frame_id: "map"},
   pose: {
-    position: {x: 5.0, y: 3.0, z: 0.0}, 
+    position: {x: 5.0, y: 3.0, z: 0.0},
     orientation: {w: 1.0}
   }
 }'
@@ -167,50 +153,30 @@ ros2 topic pub --once /driving_mode std_msgs/String 'data: "autonomous"'
 - Otomatik engel kaçınma
 - DWA yol planlama
 
-### 🧱 3. Duvar Takip Modu (`follow_wall`)
-
-```bash
-ros2 topic pub --once /driving_mode std_msgs/String 'data: "follow_wall"'
-```
-
-- Sağ duvara göre ilerleme
-- Sabit mesafe korunması
-- Köşe takibi
-
-### 🗺️ 4. Keşif Modu (`explore`)
-
-```bash
-ros2 topic pub --once /driving_mode std_msgs/String 'data: "explore"'
-```
-
-- Otomatik alan keşfi
-- Sistematik tarama
-- Hedef rotasyon
-
 ---
 
 ## 📡 Topic'ler ve Mesajlar
 
 ### 📥 Giriş Topic'leri
 
-| Topic | Mesaj Tipi | Açıklama |
-|-------|------------|----------|
-| `/get_lidar/scan` | `sensor_msgs/LaserScan` | LiDAR verisi |
-| `/get_rgbd_camera/depth_image` | `sensor_msgs/Image` | Derinlik kamerası |
-| `/get_encoder/odom` | `nav_msgs/Odometry` | Robot pozisyonu |
-| `/driving_mode` | `std_msgs/String` | Sürüş modu |
-| `/goal_pose` | `geometry_msgs/PoseStamped` | Hedef pozisyon |
-| `/emergency_stop` | `std_msgs/Bool` | Acil durdurma |
+| Topic                          | Mesaj Tipi                  | Açıklama          |
+| ------------------------------ | --------------------------- | ----------------- |
+| `/get_lidar/scan`              | `sensor_msgs/LaserScan`     | LiDAR verisi      |
+| `/get_rgbd_camera/depth_image` | `sensor_msgs/Image`         | Derinlik kamerası |
+| `/get_encoder/odom`            | `nav_msgs/Odometry`         | Robot pozisyonu   |
+| `/driving_mode`                | `std_msgs/String`           | Sürüş modu        |
+| `/goal_pose`                   | `geometry_msgs/PoseStamped` | Hedef pozisyon    |
+| `/emergency_stop`              | `std_msgs/Bool`             | Acil durdurma     |
 
 ### 📤 Çıkış Topic'leri
 
-| Topic | Mesaj Tipi | Açıklama |
-|-------|------------|----------|
-| `/cmd_vel` | `geometry_msgs/Twist` | Motor komutları |
-| `/detect_obstacle/obstacle_map` | `nav_msgs/OccupancyGrid` | Engel haritası |
-| `/planned_path` | `nav_msgs/Path` | Planlanan yol |
-| `/autonomous_status` | `std_msgs/String` | Sistem durumu |
-| `/behavior_status` | `std_msgs/String` | Davranış durumu |
+| Topic                           | Mesaj Tipi               | Açıklama        |
+| ------------------------------- | ------------------------ | --------------- |
+| `/cmd_vel`                      | `geometry_msgs/Twist`    | Motor komutları |
+| `/detect_obstacle/obstacle_map` | `nav_msgs/OccupancyGrid` | Engel haritası  |
+| `/planned_path`                 | `nav_msgs/Path`          | Planlanan yol   |
+| `/autonomous_status`            | `std_msgs/String`        | Sistem durumu   |
+| `/behavior_status`              | `std_msgs/String`        | Davranış durumu |
 
 ---
 
